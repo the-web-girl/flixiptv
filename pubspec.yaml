@@ -1,0 +1,55 @@
+name: flixiptv
+description: A beautiful IPTV player with M3U support
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Video playback
+  media_kit: ^1.1.10
+  media_kit_video: ^1.2.4
+  media_kit_libs_video: ^1.0.4
+  
+  # HTTP & networking
+  http: ^1.2.0
+  dio: ^5.4.0
+  
+  # State management
+  provider: ^6.1.1
+  
+  # Storage
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.2
+  
+  # UI
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  flutter_staggered_animations: ^1.1.1
+  google_fonts: ^6.2.1
+  
+  # Utils
+  url_launcher: ^6.2.4
+  file_picker: ^8.0.0+1
+  permission_handler: ^11.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+  fonts:
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-Regular.ttf
+        - asset: assets/fonts/Outfit-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Outfit-SemiBold.ttf
+          weight: 600
