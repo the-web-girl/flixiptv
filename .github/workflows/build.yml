@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Override screen_brightness_android
+        run: flutter pub add screen_brightness_android:2.2.0
+
       - name: Build APK
         run: flutter build apk --release
 
