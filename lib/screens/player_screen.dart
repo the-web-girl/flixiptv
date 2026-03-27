@@ -30,19 +30,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
     try {
       _videoController = VideoPlayerController.networkUrl(
         Uri.parse(widget.item.url),
+        httpHeaders: {
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+        },
       );
-      await _videoController!.initialize();
+      await _videoController!.initialize().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw Exception('Timeout'),
+      );
       _chewieController = ChewieController(
         videoPlayerController: _videoController!,
         autoPlay: true,
-        looping: false,
+        looping: true,
         allowFullScreen: true,
         allowMuting: true,
         showControls: true,
-        placeholder: Container(color: Colors.black),
-        errorBuilder: (context, errorMessage) {
-          return _buildErrorWidget();
-        },
+        errorBuilder: (context, errorMessage) => _buildErrorWidget(),
       );
       if (mounted) setState(() => _isInitializing = false);
     } catch (e) {
@@ -50,23 +53,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _hasError = true;
         _isInitializing = false;
       });
+      // Si le lecteur intégré échoue, ouvrir VLC automatiquement
+      _openInVlc(auto: true);
     }
   }
 
-  Future<void> _openInVlc() async {
-    final vlcUri = Uri.parse('vlc://${widget.item.url}');
-    if (await canLaunchUrl(vlcUri)) {
-      await launchUrl(vlcUri);
-    } else {
-      await Clipboard.setData(ClipboardData(text: widget.item.url));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('URL copiée — ouvrez VLC et collez l\'URL'),
-            backgroundColor: AppTheme.accent,
+  Future<void> _openInVlc({bool auto = false}) async {
+    final url = widget.item.url;
+
+    // Essai 1 : intent VLC direct (Android)
+    final vlcIntent = Uri.parse('vlc://$url');
+    if (await canLaunchUrl(vlcIntent)) {
+      await launchUrl(vlcIntent, mode: LaunchMode.externalApplication);
+      return;
+    }
+
+    // Essai 2 : intent Android avec type vidéo
+    final videoUri = Uri.parse(url);
+    if (await canLaunchUrl(videoUri)) {
+      await launchUrl(videoUri, mode: LaunchMode.externalApplication);
+      return;
+    }
+
+    // Fallback : copier l'URL si rien ne fonctionne
+    if (mounted) {
+      await Clipboard.setData(ClipboardData(text: url));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('URL copiée — collez-la dans VLC'),
+          backgroundColor: AppTheme.accent,
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
           ),
-        );
-      }
+        ),
+      );
     }
   }
 
@@ -105,9 +127,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  // Bouton VLC manuel
                   TextButton.icon(
-                    onPressed: _openInVlc,
-                    icon: const Icon(Icons.open_in_new, size: 15),
+                    onPressed: () => _openInVlc(),
+                    icon: const Icon(Icons.play_circle, size: 16),
                     label: const Text('VLC'),
                     style: TextButton.styleFrom(
                       foregroundColor: AppTheme.accent,
@@ -126,8 +149,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
             Expanded(
               child: _isInitializing
                   ? const Center(
-                      child: CircularProgressIndicator(
-                          color: AppTheme.accent))
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(color: AppTheme.accent),
+                          SizedBox(height: 16),
+                          Text(
+                            'Connexion au flux...',
+                            style: TextStyle(color: AppTheme.textSecondary),
+                          ),
+                        ],
+                      ),
+                    )
                   : _hasError
                       ? _buildErrorWidget()
                       : Chewie(controller: _chewieController!),
@@ -141,45 +174,55 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _buildErrorWidget() {
     return Container(
       color: Colors.black,
+      padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline,
-              color: AppTheme.liveColor, size: 48),
-          const SizedBox(height: 12),
-          const Text(
-            'Impossible de lire ce flux.',
-            style: TextStyle(color: Colors.white, fontSize: 15),
-          ),
+          const Icon(Icons.play_circle_outline,
+              color: AppTheme.accent, size: 72),
           const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: _openInVlc,
-            icon: const Icon(Icons.play_circle_outline),
-            label: const Text('Ouvrir dans VLC'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accent,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+          Text(
+            widget.item.name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Ce flux sera ouvert dans VLC',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _openInVlc(),
+              icon: const Icon(Icons.play_arrow_rounded, size: 24),
+              label: const Text(
+                'Ouvrir dans VLC',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 10),
-          TextButton(
-            onPressed: () async {
-              await Clipboard.setData(
-                  ClipboardData(text: widget.item.url));
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('URL copiée'),
-                    backgroundColor: AppTheme.accent,
-                  ),
-                );
-              }
-            },
-            child: const Text('Copier l\'URL',
-                style: TextStyle(color: AppTheme.textSecondary)),
-          ),
+          const SizedBox(height: 12),
+          if (widget.item.group != null)
+            Text(
+              widget.item.group!,
+              style: const TextStyle(
+                  color: AppTheme.textSecondary, fontSize: 12),
+            ),
         ],
       ),
     );
