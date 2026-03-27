@@ -29,6 +29,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Generate missing Android resources
+        run: |
+          cd android
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/res/mipmap-mdpi
+          mkdir -p app/src/main/res/mipmap-xhdpi
+          mkdir -p app/src/main/res/mipmap-xxhdpi
+          mkdir -p app/src/main/res/mipmap-xxxhdpi
+          # Flutter génère les icônes par défaut automatiquement
+          cd ..
+          flutter create --platforms android . --project-name flixiptv 2>/dev/null || true
+
       - name: Build APK
         run: flutter build apk --release
 
