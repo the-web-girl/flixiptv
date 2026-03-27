@@ -1,14 +1,12 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
 }
-
-apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 android {
     namespace "com.example.flixiptv"
-    compileSdkVersion 34
-    ndkVersion flutter.ndkVersion
+    compileSdk 34
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -21,8 +19,8 @@ android {
 
     defaultConfig {
         applicationId "com.example.flixiptv"
-        minSdkVersion 21
-        targetSdkVersion 34
+        minSdk 21
+        targetSdk 34
         versionCode flutter.versionCode
         versionName flutter.versionName
     }
