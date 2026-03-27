@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/media_item.dart';
 import '../theme.dart';
 
 class PlayerScreen extends StatefulWidget {
   final MediaItem item;
-
   const PlayerScreen({super.key, required this.item});
 
   @override
@@ -16,40 +15,42 @@ class PlayerScreen extends StatefulWidget {
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
-  late final Player _player;
-  late final VideoController _controller;
+  VideoPlayerController? _videoController;
+  ChewieController? _chewieController;
   bool _hasError = false;
-  bool _isLoading = true;
+  bool _isInitializing = true;
 
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.portraitUp,
-    ]);
     _initPlayer();
   }
 
-  void _initPlayer() {
-    _player = Player();
-    _controller = VideoController(_player);
-
-    _player.stream.error.listen((err) {
-      if (mounted && err.isNotEmpty) {
-        setState(() {
-          _hasError = true;
-          _isLoading = false;
-        });
-      }
-    });
-
-    _player.stream.playing.listen((_) {
-      if (mounted) setState(() => _isLoading = false);
-    });
-
-    _player.open(Media(widget.item.url));
+  Future<void> _initPlayer() async {
+    try {
+      _videoController = VideoPlayerController.networkUrl(
+        Uri.parse(widget.item.url),
+      );
+      await _videoController!.initialize();
+      _chewieController = ChewieController(
+        videoPlayerController: _videoController!,
+        autoPlay: true,
+        looping: false,
+        allowFullScreen: true,
+        allowMuting: true,
+        showControls: true,
+        placeholder: Container(color: Colors.black),
+        errorBuilder: (context, errorMessage) {
+          return _buildErrorWidget();
+        },
+      );
+      if (mounted) setState(() => _isInitializing = false);
+    } catch (e) {
+      if (mounted) setState(() {
+        _hasError = true;
+        _isInitializing = false;
+      });
+    }
   }
 
   Future<void> _openInVlc() async {
@@ -57,12 +58,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (await canLaunchUrl(vlcUri)) {
       await launchUrl(vlcUri);
     } else {
-      // Fallback: copier l'URL
       await Clipboard.setData(ClipboardData(text: widget.item.url));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('URL copiée ! Ouvrez VLC et collez l\'URL manuellement.'),
+            content: Text('URL copiée — ouvrez VLC et collez l\'URL'),
             backgroundColor: AppTheme.accent,
           ),
         );
@@ -72,8 +72,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    _player.dispose();
+    _chewieController?.dispose();
+    _videoController?.dispose();
     super.dispose();
   }
 
@@ -86,7 +86,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               color: Colors.black,
               child: Row(
                 children: [
@@ -99,22 +99,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       widget.item.name,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  // Bouton VLC
                   TextButton.icon(
                     onPressed: _openInVlc,
-                    icon: const Icon(Icons.open_in_new, size: 16),
+                    icon: const Icon(Icons.open_in_new, size: 15),
                     label: const Text('VLC'),
                     style: TextButton.styleFrom(
                       foregroundColor: AppTheme.accent,
                       backgroundColor: AppTheme.accentGlow,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                          horizontal: 10, vertical: 6),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -123,47 +122,34 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ],
               ),
             ),
-
-            // Lecteur vidéo
+            // Lecteur
             Expanded(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Video(controller: _controller),
-                  if (_isLoading && !_hasError)
-                    const CircularProgressIndicator(color: AppTheme.accent),
-                  if (_hasError) _buildErrorState(),
-                ],
-              ),
+              child: _isInitializing
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                          color: AppTheme.accent))
+                  : _hasError
+                      ? _buildErrorWidget()
+                      : Chewie(controller: _chewieController!),
             ),
-
-            // Info et contrôles bas
-            _buildBottomBar(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorWidget() {
     return Container(
-      color: Colors.black87,
-      padding: const EdgeInsets.all(24),
+      color: Colors.black,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, color: AppTheme.liveColor, size: 48),
+          const Icon(Icons.error_outline,
+              color: AppTheme.liveColor, size: 48),
           const SizedBox(height: 12),
           const Text(
-            'Le lecteur intégré ne peut pas lire ce flux.',
+            'Impossible de lire ce flux.',
             style: TextStyle(color: Colors.white, fontSize: 15),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Essayez d\'ouvrir avec VLC.',
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
@@ -173,11 +159,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.accent,
               foregroundColor: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+                  borderRadius: BorderRadius.circular(10)),
             ),
           ),
           const SizedBox(height: 10),
@@ -188,49 +171,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('URL copiée dans le presse-papier'),
+                    content: Text('URL copiée'),
                     backgroundColor: AppTheme.accent,
                   ),
                 );
               }
             },
-            child: const Text(
-              'Copier l\'URL du flux',
-              style: TextStyle(color: AppTheme.textSecondary),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: Colors.black,
-      child: Row(
-        children: [
-          if (widget.item.group != null)
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppTheme.accentGlow,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                widget.item.group!,
-                style: const TextStyle(
-                  color: AppTheme.accent,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          const Spacer(),
-          const Text(
-            'Lecteur intégré',
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 11),
+            child: const Text('Copier l\'URL',
+                style: TextStyle(color: AppTheme.textSecondary)),
           ),
         ],
       ),

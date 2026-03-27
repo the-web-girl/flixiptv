@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 import 'providers/iptv_provider.dart';
 import 'screens/home_screen.dart';
@@ -7,7 +6,6 @@ import 'theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MediaKit.ensureInitialized();
   runApp(const FlixIptvApp());
 }
 
