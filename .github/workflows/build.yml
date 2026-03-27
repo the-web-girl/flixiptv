@@ -29,9 +29,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Override screen_brightness_android
-        run: flutter pub add screen_brightness_android:2.2.0
-
       - name: Build APK
         run: flutter build apk --release
 
@@ -99,19 +96,11 @@ jobs:
             artifacts/windows/flixiptv-windows.zip
           body: |
             ## 📺 FlixIPTV
-
-            ### Téléchargements
-            - 📱 **Android** : `app-release.apk` — installer directement sur le téléphone
-            - 🖥️ **Windows** : `flixiptv-windows.zip` — extraire et lancer `flixiptv.exe`
-
-            ### Instructions Android
-            1. Télécharger `app-release.apk`
-            2. Paramètres → Sécurité → Autoriser les sources inconnues
-            3. Ouvrir l'APK et installer
-
-            ### Playlist de test (gratuite)
-            ```
+            - 📱 **Android** : `app-release.apk`
+            - 🖥️ **Windows** : `flixiptv-windows.zip`
+            ### Playlist de test
+```
             https://raw.githubusercontent.com/Rodri200906/IPTV-Rodri/main/IPTV-Rodri.m3u
-            ```
+```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
