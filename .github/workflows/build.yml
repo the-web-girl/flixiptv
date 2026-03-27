@@ -30,16 +30,7 @@ jobs:
         run: flutter pub get
 
       - name: Generate missing Android resources
-        run: |
-          cd android
-          mkdir -p app/src/main/res/mipmap-hdpi
-          mkdir -p app/src/main/res/mipmap-mdpi
-          mkdir -p app/src/main/res/mipmap-xhdpi
-          mkdir -p app/src/main/res/mipmap-xxhdpi
-          mkdir -p app/src/main/res/mipmap-xxxhdpi
-          # Flutter génère les icônes par défaut automatiquement
-          cd ..
-          flutter create --platforms android . --project-name flixiptv 2>/dev/null || true
+        run: flutter create --platforms android . 2>/dev/null || true
 
       - name: Build APK
         run: flutter build apk --release
@@ -60,7 +51,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.3'
+          flutter-version: '3.29.0'
           channel: 'stable'
 
       - name: Enable Windows desktop
@@ -68,6 +59,10 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Generate Windows project files
+        run: flutter create --platforms windows . 2>$null; exit 0
+        shell: pwsh
 
       - name: Build Windows
         run: flutter build windows --release
